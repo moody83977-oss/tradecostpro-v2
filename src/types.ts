@@ -91,7 +91,7 @@ export interface ContractorSettings {
   defaultMaterialMarkup: number;
   taxRate: number;
   dispatchFee: number;
-  subscriptionTier: 'starter' | 'pro' | 'elite';
+  subscriptionTier: 'free' | 'starter' | 'pro' | 'elite';
   stripeConnectActive: boolean;
   stripePublishableKey?: string;
   stripeAccountId?: string;

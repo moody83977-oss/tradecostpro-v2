@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { LineItem, LeakageAlert, TradeType, Job } from '../types';
 import { formatCurrency, playChime } from '../utils/calculations';
+import { DailyUsageStatus } from '../utils/usageLimit';
+import { parseVoiceLocally } from '../utils/localVoiceParser';
 
 interface VoiceEstimatorModalProps {
   isOpen: boolean;
@@ -33,6 +35,9 @@ interface VoiceEstimatorModalProps {
   defaultTrade: TradeType;
   defaultHourlyRate: number;
   defaultMarkup: number;
+  usageStatus: DailyUsageStatus;
+  onOpenUpgrade: () => void;
+  onRecordUsage: () => void;
 }
 
 const TRADE_PRESETS = [
@@ -64,7 +69,10 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
   onApplyEstimate,
   defaultTrade,
   defaultHourlyRate,
-  defaultMarkup
+  defaultMarkup,
+  usageStatus,
+  onOpenUpgrade,
+  onRecordUsage
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -117,6 +125,11 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
   }, []);
 
   const toggleRecording = () => {
+    if (!usageStatus.canUse) {
+      onOpenUpgrade();
+      return;
+    }
+
     if (isRecording) {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -147,6 +160,11 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
   };
 
   const handleParseEstimate = async () => {
+    if (!usageStatus.canUse) {
+      onOpenUpgrade();
+      return;
+    }
+
     if (!transcript.trim()) {
       setErrorMsg('Please speak or type a brief description of the job first.');
       return;
@@ -156,30 +174,54 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/parse-voice-estimate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: transcript,
-          trade: selectedTrade,
-          hourlyRate: Number(hourlyRate) || 115,
-          defaultMarkup: Number(markup) || 45
-        })
-      });
+      let parsedData: any = null;
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to parse estimate.');
+      try {
+        const res = await fetch('/api/parse-voice-estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: transcript,
+            trade: selectedTrade,
+            hourlyRate: Number(hourlyRate) || 115,
+            defaultMarkup: Number(markup) || 45
+          })
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const json = await res.json();
+          if (json && json.data) {
+            parsedData = json.data;
+          }
+        }
+      } catch (netErr) {
+        console.warn('Backend API request encountered an issue, switching to instant on-device parser:', netErr);
       }
 
-      const json = await res.json();
-      if (json.data) {
-        setParseResult(json.data);
-        playChime('success');
+      // If backend API failed, returned HTML, or is offline, instantly use the on-device parser
+      if (!parsedData) {
+        parsedData = parseVoiceLocally(
+          transcript,
+          selectedTrade,
+          Number(hourlyRate) || 500,
+          Number(markup) || 30
+        );
       }
+
+      setParseResult(parsedData);
+      playChime('success');
     } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || 'Error parsing estimate. Check connection.');
+      console.error('Estimate parsing fallback:', err);
+      // Failsafe: guaranteed to produce structured estimate
+      const fallbackData = parseVoiceLocally(
+        transcript,
+        selectedTrade,
+        Number(hourlyRate) || 500,
+        Number(markup) || 30
+      );
+      setParseResult(fallbackData);
+      playChime('success');
     } finally {
       setIsLoading(false);
     }
@@ -217,6 +259,10 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
 
   const handleConfirmAndApply = () => {
     if (!parseResult) return;
+
+    if (!usageStatus.isPro) {
+      onRecordUsage();
+    }
 
     onApplyEstimate({
       title: parseResult.jobSummary || 'Field Service Estimate',
@@ -262,6 +308,64 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Daily Free Usage & Pro Status Bar */}
+        <div className="px-5 py-2.5 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-xs">
+          {usageStatus.isPro ? (
+            <div className="flex items-center gap-2 text-emerald-400 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>⚡ TradeCost Pro Member: Unlimited Voice AI Estimates</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Daily Free Limit:</span>
+                <span className={`font-mono font-bold px-2 py-0.5 rounded text-xs ${
+                  usageStatus.remainingToday > 1 
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+                    : usageStatus.remainingToday === 1 
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' 
+                    : 'bg-red-950 text-red-300 border border-red-700'
+                }`}>
+                  {usageStatus.remainingToday} of 4 remaining today
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenUpgrade}
+                className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 transition"
+              >
+                <span>Mag-Upgrade sa PRO (GCash) ⚡</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Locked Limit Alert (if free limit reached) */}
+        {!usageStatus.canUse && (
+          <div className="m-4 p-4 rounded-xl bg-gradient-to-r from-red-950/90 via-slate-900 to-amber-950/70 border-2 border-amber-500/60 shadow-xl space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-red-500/20 text-red-400 text-xl shrink-0">
+                🔒
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-white text-sm sm:text-base">
+                  Naubos na ang 4 na Libreng Voice Estimates mo ngayong araw!
+                </h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Bukas magkakaroon ka ulit ng 4 na libreng estimates, o mag-upgrade na ngayon sa <strong>TradeCost Pro</strong> para sa <strong>UNLIMITED</strong> Voice AI, Tap-to-Pay, at custom invoices gamit ang GCash!
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenUpgrade}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
+            >
+              <span>Bayaran sa GCash & I-activate ang PRO (₱299/mo o ₱49/day) ⚡</span>
+            </button>
+          </div>
+        )}
 
         <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto">
           {/* Quick Trade Presets for easy one-tap testing */}

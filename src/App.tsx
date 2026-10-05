@@ -42,6 +42,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { MonetizationModal } from './components/MonetizationModal';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
 import { playChime, formatCurrency, calculateJobFinancials } from './utils/calculations';
+import { getDailyVoiceUsageStatus, incrementDailyVoiceUsage, DailyUsageStatus } from './utils/usageLimit';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -235,7 +236,23 @@ export default function App() {
         if (!parsed.gcashNumber || parsed.gcashNumber.includes('888') || parsed.gcashNumber.trim() === '') {
           parsed.gcashNumber = '0916 768 5173';
         }
-        return { ...INITIAL_SETTINGS, ...parsed, gcashNumber: parsed.gcashNumber || '0916 768 5173' };
+        if (!parsed.businessName || parsed.businessName.includes('Apex')) {
+          parsed.businessName = 'TradeCost Pro';
+        }
+        if (!parsed.technicianName || parsed.technicianName.includes('Marcus')) {
+          parsed.technicianName = 'TradeCost Pro';
+        }
+        if (!parsed.gcashAccountName || parsed.gcashAccountName.includes('Apex') || parsed.gcashAccountName.includes('Services')) {
+          parsed.gcashAccountName = 'TradeCost Pro';
+        }
+        return { 
+          ...INITIAL_SETTINGS, 
+          ...parsed, 
+          businessName: parsed.businessName || 'TradeCost Pro',
+          technicianName: parsed.technicianName || 'TradeCost Pro',
+          gcashAccountName: parsed.gcashAccountName || 'TradeCost Pro',
+          gcashNumber: parsed.gcashNumber || '0916 768 5173' 
+        };
       }
       return INITIAL_SETTINGS;
     } catch {
@@ -252,8 +269,28 @@ export default function App() {
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMonetizationOpen, setIsMonetizationOpen] = useState(false);
+  const [isLimitReachedNotice, setIsLimitReachedNotice] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedAppUrl, setCopiedAppUrl] = useState(false);
+
+  const [dailyUsage, setDailyUsage] = useState<DailyUsageStatus>(() => getDailyVoiceUsageStatus(settings));
+
+  // Sync daily usage status whenever settings change
+  useEffect(() => {
+    setDailyUsage(getDailyVoiceUsageStatus(settings));
+  }, [settings]);
+
+  const handleOpenVoice = () => {
+    const current = getDailyVoiceUsageStatus(settings);
+    setDailyUsage(current);
+    if (!current.canUse) {
+      setIsLimitReachedNotice(true);
+      setIsMonetizationOpen(true);
+      playChime('alert');
+      return;
+    }
+    setIsVoiceOpen(true);
+  };
 
   const publicAppUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tradecostpro.app';
 
@@ -516,7 +553,7 @@ export default function App() {
             settings={settings}
             onBack={() => setSelectedJobId(null)}
             onUpdateJob={handleUpdateJob}
-            onOpenVoice={() => setIsVoiceOpen(true)}
+            onOpenVoice={handleOpenVoice}
             onOpenLookup={() => setIsLookupOpen(true)}
             onOpenPayment={() => setIsPaymentOpen(true)}
             onOpenInvoice={() => setIsInvoiceOpen(true)}
@@ -527,13 +564,17 @@ export default function App() {
             settings={settings}
             onSelectJob={(j) => setSelectedJobId(j.id)}
             onNewJob={() => setIsNewJobOpen(true)}
-            onOpenVoice={() => setIsVoiceOpen(true)}
+            onOpenVoice={handleOpenVoice}
             onOpenLookup={() => setIsLookupOpen(true)}
-            onOpenMonetization={() => setIsMonetizationOpen(true)}
+            onOpenMonetization={() => {
+              setIsLimitReachedNotice(false);
+              setIsMonetizationOpen(true);
+            }}
             onQuickPayment={(j) => {
               setSelectedJobId(j.id);
               setIsPaymentOpen(true);
             }}
+            usageStatus={dailyUsage}
           />
         )}
       </main>
@@ -555,13 +596,15 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => setIsVoiceOpen(true)}
+            onClick={handleOpenVoice}
             className="py-1 flex flex-col items-center gap-1 text-amber-400 hover:text-amber-300 font-semibold transition"
           >
             <div className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center">
               <Mic className="w-3.5 h-3.5 font-bold" />
             </div>
-            <span className="text-[10px]">Voice AI</span>
+            <span className="text-[10px]">
+              {dailyUsage.isPro ? 'Voice AI' : `Voice (${dailyUsage.remainingToday}/4)`}
+            </span>
           </button>
 
           <button
@@ -575,11 +618,14 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => setIsMonetizationOpen(true)}
+            onClick={() => {
+              setIsLimitReachedNotice(false);
+              setIsMonetizationOpen(true);
+            }}
             className="py-1 flex flex-col items-center gap-1 text-emerald-400 hover:text-emerald-300 transition"
           >
             <Zap className="w-4 h-4" />
-            <span className="text-[10px]">Fintech</span>
+            <span className="text-[10px]">Pro GCash</span>
           </button>
 
           <button
@@ -602,6 +648,16 @@ export default function App() {
         defaultTrade={settings.trade}
         defaultHourlyRate={settings.defaultHourlyRate}
         defaultMarkup={settings.defaultMaterialMarkup}
+        usageStatus={dailyUsage}
+        onOpenUpgrade={() => {
+          setIsVoiceOpen(false);
+          setIsLimitReachedNotice(true);
+          setIsMonetizationOpen(true);
+        }}
+        onRecordUsage={() => {
+          const updated = incrementDailyVoiceUsage();
+          setDailyUsage(updated);
+        }}
       />
 
       <MaterialLookupModal
@@ -650,11 +706,18 @@ export default function App() {
 
       <MonetizationModal
         isOpen={isMonetizationOpen}
-        onClose={() => setIsMonetizationOpen(false)}
+        onClose={() => {
+          setIsMonetizationOpen(false);
+          setIsLimitReachedNotice(false);
+        }}
         settings={settings}
-        onUpdateTier={(tier) => setSettings({ ...settings, subscriptionTier: tier })}
+        onUpdateTier={(tier) => {
+          setSettings({ ...settings, subscriptionTier: tier });
+          setDailyUsage(getDailyVoiceUsageStatus({ ...settings, subscriptionTier: tier }));
+        }}
         totalRecoveredLeakage={totalLeakageRecovered}
         monthlyVolumeProcessed={totalVolume}
+        limitReachedNotice={isLimitReachedNotice}
       />
 
       {/* Share / Make Public Modal */}

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Job, ContractorSettings } from '../types';
 import { calculateJobFinancials, formatCurrency } from '../utils/calculations';
+import { DailyUsageStatus } from '../utils/usageLimit';
 
 interface JobListProps {
   jobs: Job[];
@@ -31,6 +32,7 @@ interface JobListProps {
   onOpenLookup: () => void;
   onOpenMonetization: () => void;
   onQuickPayment: (job: Job) => void;
+  usageStatus?: DailyUsageStatus;
 }
 
 export const JobList: React.FC<JobListProps> = ({
@@ -41,7 +43,8 @@ export const JobList: React.FC<JobListProps> = ({
   onOpenVoice,
   onOpenLookup,
   onOpenMonetization,
-  onQuickPayment
+  onQuickPayment,
+  usageStatus
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +112,19 @@ export const JobList: React.FC<JobListProps> = ({
             >
               <Mic className="w-4 h-4" />
               <span>Voice-to-Estimate</span>
+              {usageStatus && (
+                usageStatus.isPro ? (
+                  <span className="text-[10px] bg-slate-950 text-amber-400 px-1.5 py-0.5 rounded font-black font-mono">
+                    PRO UNLI
+                  </span>
+                ) : (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-black font-mono ${
+                    usageStatus.remainingToday > 0 ? 'bg-slate-950/80 text-amber-300' : 'bg-red-950 text-red-200'
+                  }`}>
+                    {usageStatus.remainingToday > 0 ? `${usageStatus.remainingToday}/4 Free` : 'Limit Reached'}
+                  </span>
+                )
+              )}
             </button>
             <button
               type="button"

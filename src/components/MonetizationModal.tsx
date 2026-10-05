@@ -26,6 +26,7 @@ interface MonetizationModalProps {
   onUpdateTier: (tier: 'starter' | 'pro' | 'elite') => void;
   totalRecoveredLeakage: number;
   monthlyVolumeProcessed: number;
+  limitReachedNotice?: boolean;
 }
 
 export const MonetizationModal: React.FC<MonetizationModalProps> = ({
@@ -34,7 +35,8 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
   settings,
   onUpdateTier,
   totalRecoveredLeakage,
-  monthlyVolumeProcessed
+  monthlyVolumeProcessed,
+  limitReachedNotice = false
 }) => {
   const [jobsPerMonth, setJobsPerMonth] = useState<number>(28);
   const [avgLeakagePerJob, setAvgLeakagePerJob] = useState<number>(38);
@@ -43,9 +45,10 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
   const [gcashRef, setGcashRef] = useState<string>('');
   const [copiedGcash, setCopiedGcash] = useState<boolean>(false);
   const [tipSuccess, setTipSuccess] = useState<string | null>(null);
+  const [qrImgFailed, setQrImgFailed] = useState<boolean>(false);
 
   const creatorGcashNumber = '0916 768 5173';
-  const creatorAccountName = 'TradeCost Pro Platform Creator';
+  const creatorAccountName = 'TradeCost Pro';
 
   if (!isOpen) return null;
 
@@ -58,13 +61,14 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
 
   const handleVerifyGcashPayment = (tier: 'starter' | 'pro' | 'elite') => {
     if (!gcashRef.trim()) {
-      alert('Pakilagay po ang GCash Reference Number mula sa resibo para ma-activate ang Pro!');
+      alert('Pakilagay po ang GCash Reference Number mula sa inyong resibo upang ma-activate ang Pro!');
       return;
     }
     onUpdateTier(tier);
     playChime('success');
-    alert(`Salamat sa pagsuporta! Matagumpay na na-activate ang iyong ${tier.toUpperCase()} Plan gamit ang Reference #${gcashRef}!`);
+    alert(`🎉 Maraming salamat! Na-activate na ang iyong TradeCost Pro Unlimited Plan! (Ref #${gcashRef}). Bukas na ang unli voice estimates mo!`);
     setGcashRef('');
+    onClose();
   };
 
   const handleSendTip = (amount: number) => {
@@ -119,6 +123,21 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
 
         <div className="p-5 space-y-5 max-h-[82vh] overflow-y-auto">
           
+          {/* Daily 4-Estimate Limit Notice (Shown when triggered by daily cap) */}
+          {limitReachedNotice && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-red-500/20 via-amber-500/20 to-red-500/20 border-2 border-amber-400 text-amber-200 shadow-lg shadow-amber-500/10 space-y-2 animate-pulse">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🔒</span>
+                <h4 className="font-extrabold text-white text-sm sm:text-base">
+                  Daily Free Limit Reached (4/4 Voice Estimates Used Today)
+                </h4>
+              </div>
+              <p className="text-xs text-slate-200 font-medium leading-relaxed">
+                Naubos mo na ang iyong <strong>4 na libreng estimates para sa araw na ito</strong>. Para maging <strong>UNLIMITED</strong> ang iyong Voice AI, Tap-to-Pay, at Invoicing araw-araw, mag-upgrade sa <strong>TradeCost Pro</strong> gamit ang GCash!
+              </p>
+            </div>
+          )}
+
           {/* Key Value Proposition Callout */}
           <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/15 via-slate-900 to-emerald-500/10 border border-amber-500/30 space-y-2">
             <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
@@ -254,26 +273,42 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-              <div>
-                <span className="text-[10px] text-slate-400 block">GCash Account Name:</span>
-                <span className="font-bold text-slate-100 text-xs sm:text-sm">{creatorAccountName}</span>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 block">Creator GCash Mobile Number:</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="font-mono font-black text-blue-300 text-sm tracking-wider">
+              <div className="flex flex-col justify-center">
+                <span className="text-[10px] text-slate-400 block uppercase font-mono">GCash Account Name:</span>
+                <span className="font-black text-slate-100 text-sm">{creatorAccountName}</span>
+                
+                <span className="text-[10px] text-slate-400 block uppercase font-mono mt-3">Creator GCash Mobile Number:</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="font-mono font-black text-blue-300 text-base tracking-wider">
                     {creatorGcashNumber}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyCreatorGcash}
-                    className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-semibold flex items-center gap-1 transition"
+                    className="px-2.5 py-1 rounded bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-blue-200 text-[10px] font-bold flex items-center gap-1 transition shadow-sm"
                   >
-                    {copiedGcash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedGcash ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedGcash ? 'Kopyado!' : 'Copy'}</span>
                   </button>
                 </div>
+              </div>
+
+              {/* QR Code image preview */}
+              <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-slate-950/80 border border-slate-800 text-center">
+                <span className="text-[10px] text-slate-400 font-mono mb-1">Scan QR via GCash App</span>
+                {!qrImgFailed ? (
+                  <img
+                    src="/gcash-qr.jpg"
+                    alt="TradeCost Pro GCash QR"
+                    onError={() => setQrImgFailed(true)}
+                    className="w-28 h-28 object-contain rounded-md border border-slate-700 bg-white p-1"
+                  />
+                ) : (
+                  <div className="w-28 h-28 bg-blue-950/50 border border-blue-800/40 rounded-md flex flex-col items-center justify-center p-1 text-[10px] text-blue-300">
+                    <span className="font-mono font-black">0916 768 5173</span>
+                    <span className="text-[8px] text-slate-400 mt-1">TradeCost Pro</span>
+                  </div>
+                )}
               </div>
             </div>
 
