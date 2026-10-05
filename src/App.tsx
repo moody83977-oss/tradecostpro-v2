@@ -22,7 +22,12 @@ import {
   Check,
   Globe,
   ExternalLink,
-  X
+  X,
+  Coffee,
+  Smartphone,
+  Download,
+  Share,
+  PlusSquare
 } from 'lucide-react';
 import { Job, ContractorSettings, LineItem, PaymentDetails, TradeType } from './types';
 import { INITIAL_JOBS, INITIAL_SETTINGS } from './data/initialData';
@@ -37,6 +42,172 @@ import { SettingsModal } from './components/SettingsModal';
 import { MonetizationModal } from './components/MonetizationModal';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
 import { playChime, formatCurrency, calculateJobFinancials } from './utils/calculations';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+const InstallAppBanner: React.FC = () => {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
+  const [showIOSModal, setShowIOSModal] = useState(false);
+
+  useEffect(() => {
+    const isStandaloneMode = 
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+
+    if (isStandaloneMode) {
+      setIsStandalone(true);
+      return;
+    }
+
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIOSDevice);
+
+    const dismissed = localStorage.getItem('tcp_install_dismissed');
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      if (!dismissed) {
+        setShowBanner(true);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    if (isIOSDevice && !dismissed) {
+      const timer = setTimeout(() => setShowBanner(true), 2500);
+      return () => clearTimeout(timer);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowIOSModal(true);
+      return;
+    }
+
+    if (!deferredPrompt) {
+      alert('To install, open your browser menu (⋮) and tap "Add to Home Screen" or "Install App".');
+      return;
+    }
+
+    deferredPrompt.prompt();
+    const choiceResult = await deferredPrompt.userChoice;
+    if (choiceResult.outcome === 'accepted') {
+      playChime('success');
+      setShowBanner(false);
+      setDeferredPrompt(null);
+    }
+  };
+
+  const handleDismiss = () => {
+    setShowBanner(false);
+    localStorage.setItem('tcp_install_dismissed', 'true');
+  };
+
+  if (isStandalone) return null;
+
+  return (
+    <>
+      {showBanner && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-slate-950 px-4 py-2.5 shadow-md flex items-center justify-between text-xs font-semibold relative z-30 transition animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center shrink-0 shadow-sm">
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold block sm:inline">📲 Install TradeCost Pro App:</span>{' '}
+              <span className="text-slate-900 font-medium hidden sm:inline">Add to your phone home screen for 1-tap quick access on jobs.</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              className="px-3 py-1 bg-slate-950 hover:bg-slate-900 text-amber-400 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Install to Phone</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="p-1 text-slate-800 hover:text-slate-950 transition"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* iOS Instructions Modal */}
+      {showIOSModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full text-slate-100 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                <Smartphone className="w-5 h-5" />
+                <span>Install on iPhone / iPad</span>
+              </div>
+              <button 
+                onClick={() => setShowIOSModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Apple Safari does not have an automatic install prompt. Follow these 2 simple steps:
+            </p>
+
+            <div className="space-y-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-start gap-3">
+                <div className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg shrink-0">
+                  <Share className="w-4 h-4" />
+                </div>
+                <div>
+                  <strong className="text-slate-100 block">Step 1:</strong>
+                  <span className="text-slate-400">Tap the <strong>Share</strong> button at the bottom of Safari.</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg shrink-0">
+                  <PlusSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <strong className="text-slate-100 block">Step 2:</strong>
+                  <span className="text-slate-400">Scroll down and tap <strong>Add to Home Screen</strong>.</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowIOSModal(false)}
+              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs transition"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default function App() {
   const [jobs, setJobs] = useState<Job[]>(() => {
@@ -201,6 +372,9 @@ export default function App() {
   return (
     <div className={`min-h-screen ${settings.sunlightMode ? 'bg-slate-900 text-white font-semibold' : 'bg-slate-950 text-slate-100'} transition-colors duration-200`}>
       
+      {/* PWA Install Banner */}
+      <InstallAppBanner />
+
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -263,6 +437,18 @@ export default function App() {
             >
               <Share2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Share App</span>
+            </button>
+
+            {/* Support / Pro GCash button */}
+            <button
+              type="button"
+              onClick={() => setIsMonetizationOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition shadow-sm"
+              title="Unlock Pro or Tip Creator on GCash"
+            >
+              <Coffee className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Pro & Tip</span>
+              <span className="sm:hidden">Pro</span>
             </button>
 
             {/* Monetization / ROI indicator */}
