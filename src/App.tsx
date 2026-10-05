@@ -52,8 +52,14 @@ const InstallAppBanner: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
-  const [showIOSModal, setShowIOSModal] = useState(false);
+  const [showBanner, setShowBanner] = useState(() => {
+    try {
+      return !localStorage.getItem('tcp_install_dismissed');
+    } catch {
+      return true;
+    }
+  });
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
     const isStandaloneMode = 
@@ -62,6 +68,7 @@ const InstallAppBanner: React.FC = () => {
 
     if (isStandaloneMode) {
       setIsStandalone(true);
+      setShowBanner(false);
       return;
     }
 
@@ -69,22 +76,12 @@ const InstallAppBanner: React.FC = () => {
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIOSDevice);
 
-    const dismissed = localStorage.getItem('tcp_install_dismissed');
-
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      if (!dismissed) {
-        setShowBanner(true);
-      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    if (isIOSDevice && !dismissed) {
-      const timer = setTimeout(() => setShowBanner(true), 2500);
-      return () => clearTimeout(timer);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -92,119 +89,127 @@ const InstallAppBanner: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (isIOS) {
-      setShowIOSModal(true);
-      return;
-    }
-
-    if (!deferredPrompt) {
-      alert('To install, open your browser menu (⋮) and tap "Add to Home Screen" or "Install App".');
-      return;
-    }
-
-    deferredPrompt.prompt();
-    const choiceResult = await deferredPrompt.userChoice;
-    if (choiceResult.outcome === 'accepted') {
-      playChime('success');
-      setShowBanner(false);
-      setDeferredPrompt(null);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult.outcome === 'accepted') {
+        playChime('success');
+        setShowBanner(false);
+        setDeferredPrompt(null);
+      }
+    } else {
+      setShowGuideModal(true);
     }
   };
 
   const handleDismiss = () => {
     setShowBanner(false);
-    localStorage.setItem('tcp_install_dismissed', 'true');
+    try {
+      localStorage.setItem('tcp_install_dismissed', 'true');
+    } catch {}
   };
 
-  if (isStandalone) return null;
+  if (isStandalone || !showBanner) return (
+    <>
+      {showGuideModal && renderGuideModal()}
+    </>
+  );
+
+  function renderGuideModal() {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-sm w-full text-slate-100 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+              <Smartphone className="w-5 h-5" />
+              <span>Install TradeCost Pro App</span>
+            </div>
+            <button 
+              onClick={() => setShowGuideModal(false)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-300">
+            Install this app on your phone or computer for 1-tap quick access even with slow internet:
+          </p>
+
+          <div className="space-y-2.5 text-xs">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+              <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                <span>🤖 Android (Chrome)</span>
+              </div>
+              <p className="text-slate-400 text-[11px]">
+                Tap the <strong>3 dots (⋮)</strong> at top-right ➜ tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.
+              </p>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+              <div className="font-bold text-sky-400 flex items-center gap-1.5">
+                <span>🍎 iPhone (Safari)</span>
+              </div>
+              <p className="text-slate-400 text-[11px]">
+                Tap the <strong>Share</strong> button (box with arrow) at bottom ➜ tap <strong>"Add to Home Screen"</strong>.
+              </p>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+              <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                <span>💻 Laptop / PC (Chrome / Edge)</span>
+              </div>
+              <p className="text-slate-400 text-[11px]">
+                Look at the right side of your address bar (near the star icon) ➜ click the <strong>Install App</strong> icon.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowGuideModal(false)}
+            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs transition"
+          >
+            Got it!
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      {showBanner && (
-        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-slate-950 px-4 py-2.5 shadow-md flex items-center justify-between text-xs font-semibold relative z-30 transition animate-fadeIn">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center shrink-0 shadow-sm">
-              <Smartphone className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="font-bold block sm:inline">📲 Install TradeCost Pro App:</span>{' '}
-              <span className="text-slate-900 font-medium hidden sm:inline">Add to your phone home screen for 1-tap quick access on jobs.</span>
-            </div>
+      <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-slate-950 px-4 py-2.5 shadow-md flex items-center justify-between text-xs font-semibold relative z-30 transition animate-fadeIn">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center shrink-0 shadow-sm">
+            <Smartphone className="w-4 h-4" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleInstallClick}
-              className="px-3 py-1 bg-slate-950 hover:bg-slate-900 text-amber-400 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Install to Phone</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="p-1 text-slate-800 hover:text-slate-950 transition"
-              title="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
+          <div>
+            <span className="font-bold block sm:inline">📲 Install TradeCost Pro:</span>{' '}
+            <span className="text-slate-900 font-medium hidden sm:inline">Save to phone home screen for 1-tap offline use on jobs.</span>
           </div>
         </div>
-      )}
 
-      {/* iOS Instructions Modal */}
-      {showIOSModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full text-slate-100 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                <Smartphone className="w-5 h-5" />
-                <span>Install on iPhone / iPad</span>
-              </div>
-              <button 
-                onClick={() => setShowIOSModal(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-300">
-              Apple Safari does not have an automatic install prompt. Follow these 2 simple steps:
-            </p>
-
-            <div className="space-y-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs">
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg shrink-0">
-                  <Share className="w-4 h-4" />
-                </div>
-                <div>
-                  <strong className="text-slate-100 block">Step 1:</strong>
-                  <span className="text-slate-400">Tap the <strong>Share</strong> button at the bottom of Safari.</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg shrink-0">
-                  <PlusSquare className="w-4 h-4" />
-                </div>
-                <div>
-                  <strong className="text-slate-100 block">Step 2:</strong>
-                  <span className="text-slate-400">Scroll down and tap <strong>Add to Home Screen</strong>.</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowIOSModal(false)}
-              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs transition"
-            >
-              Got it!
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="px-3 py-1 bg-slate-950 hover:bg-slate-900 text-amber-400 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Install App</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="p-1 text-slate-800 hover:text-slate-950 transition"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </div>
+
+      {showGuideModal && renderGuideModal()}
     </>
   );
 };
@@ -283,7 +288,6 @@ export default function App() {
     clientNotes: string;
   }) => {
     if (activeJob) {
-      // Append to active job
       const updated: Job = {
         ...activeJob,
         scopeSummary: activeJob.scopeSummary ? `${activeJob.scopeSummary}\n${estimateData.scopeSummary}` : estimateData.scopeSummary,
@@ -294,7 +298,6 @@ export default function App() {
       };
       handleUpdateJob(updated);
     } else {
-      // Create new job from estimate
       const newJob: Job = {
         id: 'job-' + Date.now(),
         invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -327,7 +330,6 @@ export default function App() {
       };
       handleUpdateJob(updated);
     } else {
-      // Create quick job
       const newJob: Job = {
         id: 'job-' + Date.now(),
         invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -365,14 +367,13 @@ export default function App() {
     }));
   };
 
-  // Quick stats for top bar
   const totalLeakageRecovered = jobs.reduce((sum, j) => sum + (j.recoveredLeakageAmount || 0), 0);
   const totalVolume = jobs.reduce((sum, j) => sum + calculateJobFinancials(j).finalTotal, 0);
 
   return (
     <div className={`min-h-screen ${settings.sunlightMode ? 'bg-slate-900 text-white font-semibold' : 'bg-slate-950 text-slate-100'} transition-colors duration-200`}>
       
-      {/* PWA Install Banner */}
+      {/* PWA Install Banner (Always Visible) */}
       <InstallAppBanner />
 
       {/* Top Navbar */}
@@ -665,7 +666,6 @@ export default function App() {
             </div>
 
             <div className="p-5 space-y-4">
-              {/* Domain Setup Quick Card */}
               <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
@@ -685,7 +685,6 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Public URL Box */}
               <div>
                 <label className="text-[11px] text-slate-400 font-semibold block mb-1">
                   Live Public Web Link:
@@ -710,7 +709,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Marketing Steps */}
               <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80 space-y-2 text-xs">
                 <div className="font-bold text-amber-400 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
