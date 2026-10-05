@@ -74,6 +74,7 @@ Thank you for your business!
 
   const handleShareMessenger = () => {
     handleCopyText();
+    // Open Messenger on desktop or mobile
     window.open('https://www.messenger.com', '_blank');
   };
 
@@ -224,83 +225,98 @@ Thank you for your business!
               </div>
             </div>
 
-            <div className="text-left sm:text-right text-xs space-y-1">
-              <div className="text-slate-400 print:text-gray-600">
-                <span className="font-semibold text-slate-300 print:text-gray-800">Date:</span> {new Date(job.createdAt).toLocaleDateString()}
+            <div className="text-left sm:text-right space-y-1">
+              <div className="text-2xl font-black text-slate-100 print:text-black font-mono">
+                INVOICE
               </div>
-              <div className="text-slate-400 print:text-gray-600">
-                <span className="font-semibold text-slate-300 print:text-gray-800">Due:</span> Upon Completion
+              <div className="text-xs font-mono text-slate-400 print:text-gray-600">
+                #{job.invoiceNumber}
               </div>
-              <div className="text-slate-400 print:text-gray-600">
-                <span className="font-semibold text-slate-300 print:text-gray-800">Technician:</span> {settings.technicianName}
+              <div className="text-xs text-slate-400 print:text-gray-600">
+                Date: {new Date(job.createdAt).toLocaleDateString()}
               </div>
+              {isPaid && (
+                <div className="inline-block mt-2 px-3 py-1 bg-emerald-500/20 text-emerald-400 print:text-emerald-700 print:border-emerald-600 border border-emerald-500/40 rounded text-xs font-bold uppercase tracking-wider font-mono">
+                  ✓ PAID IN FULL
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Bill To */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          {/* Bill To & Job Site */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/60 print:bg-gray-50 p-4 rounded-xl border border-slate-800 print:border-gray-200 text-xs">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-500 print:text-gray-500 tracking-wider block mb-1">
-                Bill To:
+                Bill To Customer:
               </span>
               <div className="font-bold text-slate-200 print:text-black text-sm">
                 {job.customerName}
               </div>
-              <div className="text-slate-400 print:text-gray-600 mt-0.5 flex items-start gap-1">
-                <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                <span>{job.jobAddress || 'On-site service address on work order'}</span>
-              </div>
-              {job.customerPhone && (
-                <div className="text-slate-400 print:text-gray-600 mt-0.5">
-                  Phone: {job.customerPhone}
-                </div>
-              )}
+              <div className="text-slate-400 print:text-gray-600 mt-1">{job.customerPhone}</div>
+              <div className="text-slate-400 print:text-gray-600">{job.customerEmail}</div>
             </div>
-
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-500 print:text-gray-500 tracking-wider block mb-1">
-                Job Scope / Title:
+                Job Site Address:
               </span>
-              <div className="font-semibold text-slate-200 print:text-black">
-                {job.title}
+              <div className="text-slate-300 print:text-gray-800 flex items-start gap-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                <span>{job.jobAddress || 'On-site service location'}</span>
               </div>
-              <p className="text-slate-400 print:text-gray-600 mt-1 line-clamp-2">
-                {job.description || 'Full trade service installation, repair, and diagnostic completed according to specifications.'}
-              </p>
+              <div className="text-slate-400 print:text-gray-600 mt-2">
+                Tech: <strong className="text-slate-300 print:text-black">{settings.technicianName}</strong>
+              </div>
             </div>
           </div>
 
-          {/* Line Items Table */}
-          <div className="border border-slate-800 print:border-gray-300 rounded-xl overflow-hidden">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-900 print:bg-gray-100 text-slate-400 print:text-gray-700 font-semibold border-b border-slate-800 print:border-gray-300">
-                <tr>
-                  <th className="py-2.5 px-3">Description</th>
-                  <th className="py-2.5 px-3 text-center">Type</th>
-                  <th className="py-2.5 px-3 text-right">Qty / Hrs</th>
-                  <th className="py-2.5 px-3 text-right">Unit Rate</th>
-                  <th className="py-2.5 px-3 text-right">Amount</th>
+          {/* Scope of Work */}
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 print:text-gray-700 uppercase tracking-wider block mb-1">
+              Scope of Work Performed:
+            </span>
+            <p className="text-xs text-slate-200 print:text-gray-900 leading-relaxed bg-slate-900/40 print:bg-gray-50 p-3 rounded-lg border border-slate-800 print:border-gray-200">
+              {job.scopeSummary || job.title}
+            </p>
+          </div>
+
+          {/* Itemized Line Items Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 print:border-gray-300 text-slate-400 print:text-gray-600 font-semibold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 px-2">Description</th>
+                  <th className="py-2.5 px-2 text-center">Category</th>
+                  <th className="py-2.5 px-2 text-center">Qty</th>
+                  <th className="py-2.5 px-2 text-right">Unit Price</th>
+                  <th className="py-2.5 px-2 text-right">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 print:divide-gray-200">
-                {job.lineItems.map((item) => (
-                  <tr key={item.id} className="text-slate-300 print:text-gray-800">
-                    <td className="py-2.5 px-3 font-medium">{item.description}</td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded ${
-                        item.type === 'labor' 
-                          ? 'bg-blue-500/10 text-blue-400 print:text-blue-700' 
-                          : item.type === 'material'
-                          ? 'bg-amber-500/10 text-amber-400 print:text-amber-800'
-                          : 'bg-purple-500/10 text-purple-400 print:text-purple-700'
-                      }`}>
-                        {item.type}
+                {job.lineItems.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-900/30 print:hover:bg-transparent">
+                    <td className="py-3 px-2">
+                      <div className="font-semibold text-slate-200 print:text-black">
+                        {item.name}
+                      </div>
+                      {item.supplierNote && (
+                        <div className="text-[10px] text-slate-500 print:text-gray-500 italic mt-0.5">
+                          {item.supplierNote}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-2 text-center">
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 print:bg-gray-100 text-slate-400 print:text-gray-700">
+                        {item.category}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono">{item.quantity}</td>
-                    <td className="py-2.5 px-3 text-right font-mono">{formatCurrency(item.unitCost)}</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-semibold">
-                      {formatCurrency(item.quantity * item.unitCost * (1 + (item.markupPercentage || 0) / 100))}
+                    <td className="py-3 px-2 text-center font-mono text-slate-300 print:text-gray-800">
+                      {item.quantity} {item.unit}
+                    </td>
+                    <td className="py-3 px-2 text-right font-mono text-slate-300 print:text-gray-800">
+                      {formatCurrency(item.unitPrice)}
+                    </td>
+                    <td className="py-3 px-2 text-right font-bold font-mono text-slate-100 print:text-black">
+                      {formatCurrency(item.total)}
                     </td>
                   </tr>
                 ))}
@@ -308,38 +324,34 @@ Thank you for your business!
             </table>
           </div>
 
-          {/* Totals Breakdown */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2">
-            <div className="w-full sm:w-1/2 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-slate-500 print:text-gray-500 tracking-wider block">
-                Payment Instructions:
-              </span>
-              <div className="p-3 bg-slate-900 print:bg-gray-100 rounded-xl border border-slate-800 print:border-gray-200 text-xs text-slate-400 print:text-gray-700 space-y-1">
-                {settings.gcashActive && settings.gcashNumber ? (
-                  <div>
-                    <strong className="text-blue-400">GCash / QR Ph:</strong> Send to {settings.gcashNumber} ({settings.gcashAccountName || settings.businessName})
-                  </div>
-                ) : null}
-                <div>
-                  <strong className="text-slate-300 print:text-black">Accepted:</strong> GCash, Maya, QR Ph, Contactless Card, Cash
+          {/* Totals & Financial Breakdown */}
+          <div className="flex flex-col sm:flex-row justify-between gap-6 pt-4 border-t border-slate-800 print:border-gray-300">
+            {/* Notes & Terms */}
+            <div className="space-y-3 sm:max-w-xs text-xs text-slate-400 print:text-gray-600">
+              {job.clientNotes && (
+                <div className="p-3 rounded-lg bg-slate-900/40 print:bg-gray-50 border border-slate-800 print:border-gray-200">
+                  <span className="font-semibold text-slate-300 print:text-black block mb-1">Client Notice:</span>
+                  <p className="text-[11px]">{job.clientNotes}</p>
                 </div>
+              )}
+              <div className="text-[10px] text-slate-500 print:text-gray-500">
+                Payment due upon receipt. 1-year warranty on technician labor and manufacturer warranty on parts installed.
               </div>
             </div>
 
-            <div className="w-full sm:w-72 space-y-1.5 text-xs text-slate-400 print:text-gray-700">
-              <div className="flex justify-between">
-                <span>Labor Subtotal:</span>
-                <span className="font-mono text-slate-200 print:text-black">{formatCurrency(financials.laborSubtotal)}</span>
+            {/* Subtotals & Final Total */}
+            <div className="sm:w-64 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-400 print:text-gray-600">
+                <span>Subtotal:</span>
+                <span className="font-mono text-slate-200 print:text-black">{formatCurrency(financials.subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Materials Subtotal:</span>
-                <span className="font-mono text-slate-200 print:text-black">{formatCurrency(financials.materialsSubtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Material Markup:</span>
-                <span className="font-mono text-slate-200 print:text-black">{formatCurrency(financials.markupAmount)}</span>
-              </div>
-              <div className="flex justify-between">
+              {financials.discount > 0 && (
+                <div className="flex justify-between text-rose-400 print:text-rose-600">
+                  <span>Discount:</span>
+                  <span className="font-mono">-{formatCurrency(financials.discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-slate-400 print:text-gray-600">
                 <span>Sales Tax ({job.taxRate}%):</span>
                 <span className="font-mono text-slate-200 print:text-black">{formatCurrency(financials.taxAmount)}</span>
               </div>

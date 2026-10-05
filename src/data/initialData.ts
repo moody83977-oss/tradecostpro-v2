@@ -3,7 +3,7 @@ import { Job, ContractorSettings } from '../types';
 export const INITIAL_SETTINGS: ContractorSettings = {
   businessName: 'Apex Precision Trade Services',
   technicianName: 'Marcus Vance',
-  phone: '0917 888 2345',
+  phone: '0916 768 5173',
   email: 'service@apextrades.com',
   trade: 'Plumbing',
   defaultHourlyRate: 850,
@@ -17,8 +17,9 @@ export const INITIAL_SETTINGS: ContractorSettings = {
   platformTakeRatePercent: 1.0,
   currency: 'PHP',
   gcashActive: true,
-  gcashNumber: '0917 888 2345',
+  gcashNumber: '0916 768 5173',
   gcashAccountName: 'TradeCost Pro Services',
+  gcashQrCodeUrl: '/gcash-qr.jpg',
   preferredPaymentMethod: 'both',
   sunlightMode: false,
 };

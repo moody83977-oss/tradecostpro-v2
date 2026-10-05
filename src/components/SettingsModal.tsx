@@ -50,11 +50,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        setFormData(prev => ({ ...prev, gcashQrCodeUrl: result }));
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 600;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = Math.round(width);
+        canvas.height = Math.round(height);
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.85);
+        setFormData(prev => ({ ...prev, gcashQrCodeUrl: compressed }));
         playChime('success');
-      }
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -64,12 +85,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
+    try {
+      localStorage.setItem('tradecost_settings', JSON.stringify(formData));
+    } catch (err) {
+      console.error(err);
+    }
     playChime('success');
     setSavedToast(true);
     setTimeout(() => {
       setSavedToast(false);
       onClose();
-    }, 800);
+    }, 600);
   };
 
   return (

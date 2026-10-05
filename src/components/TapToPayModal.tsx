@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   QrCode, 
@@ -14,9 +14,11 @@ import {
   Building,
   Phone,
   User,
-  Sparkles
+  Sparkles,
+  Upload,
+  Trash2
 } from 'lucide-react';
-import { Job, PaymentDetails } from '../types';
+import { Job, PaymentDetails, ContractorSettings } from '../types';
 import { QRCodeDisplay } from './QRCodeDisplay';
 import { CustomerSignaturePad } from './CustomerSignaturePad';
 import { calculateJobFinancials, formatCurrency, playChime } from '../utils/calculations';
@@ -25,6 +27,7 @@ interface TapToPayModalProps {
   isOpen: boolean;
   onClose: () => void;
   job: Job;
+  settings?: ContractorSettings;
   onPaymentSuccess: (jobId: string, paymentDetails: PaymentDetails, signature?: string) => void;
 }
 
@@ -32,10 +35,11 @@ export const TapToPayModal: React.FC<TapToPayModalProps> = ({
   isOpen,
   onClose,
   job,
+  settings: propSettings,
   onPaymentSuccess
 }) => {
-  // Read contractor settings from localStorage
-  const currentSettings = (() => {
+  // Read contractor settings from props or fallback to localStorage
+  const currentSettings = propSettings || (() => {
     try {
       const saved = localStorage.getItem('tradecost_settings');
       if (saved) return JSON.parse(saved);
@@ -57,8 +61,73 @@ export const TapToPayModal: React.FC<TapToPayModalProps> = ({
   
   // GCash specific state
   const [gcashRefInput, setGcashRefInput] = useState<string>('');
+  const [uploadedQr, setUploadedQr] = useState<string | null>(() => {
+    return currentSettings.gcashQrCodeUrl || null;
+  });
 
-  const gcashNumber = currentSettings.gcashNumber || '0917 888 2345';
+  // Keep in sync with settings prop changes
+  useEffect(() => {
+    if (currentSettings.gcashQrCodeUrl) {
+      setUploadedQr(currentSettings.gcashQrCodeUrl);
+    }
+  }, [currentSettings.gcashQrCodeUrl]);
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 600;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = Math.round(width);
+        canvas.height = Math.round(height);
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.85);
+        setUploadedQr(compressed);
+        try {
+          const saved = localStorage.getItem('tradecost_settings');
+          const parsed = saved ? JSON.parse(saved) : {};
+          parsed.gcashQrCodeUrl = compressed;
+          localStorage.setItem('tradecost_settings', JSON.stringify(parsed));
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveQr = () => {
+    setUploadedQr(null);
+    try {
+      const saved = localStorage.getItem('tradecost_settings');
+      const parsed = saved ? JSON.parse(saved) : {};
+      delete parsed.gcashQrCodeUrl;
+      localStorage.setItem('tradecost_settings', JSON.stringify(parsed));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const gcashNumber = (currentSettings.gcashNumber && currentSettings.gcashNumber.trim()) ? currentSettings.gcashNumber : '0916 768 5173';
   const gcashAccountName = currentSettings.gcashAccountName || currentSettings.businessName || 'TradeCost Pro Services';
   const platformTakeRate = Number(currentSettings.platformTakeRatePercent) || 0;
   const currency = currentSettings.currency || 'PHP';
@@ -407,9 +476,47 @@ export const TapToPayModal: React.FC<TapToPayModalProps> = ({
 
                   {/* QR Code and Instructions */}
                   <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800">
-                    <div className="p-2 bg-white rounded-xl shadow-md shrink-0">
-                      <QRCodeDisplay value={gcashQrData} size={150} />
-                    </div>
+                    {uploadedQr ? (
+                      <div className="p-2 bg-white rounded-xl shadow-md shrink-0 flex flex-col items-center">
+                        <img 
+                          src={uploadedQr} 
+                          alt="Official GCash QR Ph" 
+                          className="w-36 h-36 object-contain rounded-lg"
+                        />
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <label className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer underline flex items-center gap-0.5">
+                            <Upload className="w-2.5 h-2.5" /> Palitan ang QR
+                            <input type="file" accept="image/*" onChange={handleQrUpload} className="hidden" />
+                          </label>
+                          <span className="text-slate-300">•</span>
+                          <button
+                            type="button"
+                            onClick={handleRemoveQr}
+                            className="text-[10px] text-rose-500 hover:text-rose-700 font-bold flex items-center gap-0.5"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" /> Alisin
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-dashed border-blue-500/50 hover:border-blue-400 bg-blue-950/40 hover:bg-blue-950/60 cursor-pointer transition text-center group w-full sm:w-40 h-40 shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition">
+                          <Upload className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-blue-200">
+                          I-upload ang GCash QR mo
+                        </span>
+                        <span className="text-[10px] text-slate-400 mt-1 leading-tight px-1">
+                          Pindutin para pumili mula sa Gallery ng cellphone
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleQrUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
 
                     <div className="space-y-2 text-xs flex-1 text-center sm:text-left">
                       <div>

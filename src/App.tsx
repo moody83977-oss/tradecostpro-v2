@@ -137,6 +137,7 @@ const InstallAppBanner: React.FC = () => {
           </p>
 
           <div className="space-y-2.5 text-xs">
+            {/* Android / Chrome */}
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <div className="font-bold text-emerald-400 flex items-center gap-1.5">
                 <span>🤖 Android (Chrome)</span>
@@ -146,6 +147,7 @@ const InstallAppBanner: React.FC = () => {
               </p>
             </div>
 
+            {/* iPhone / Safari */}
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <div className="font-bold text-sky-400 flex items-center gap-1.5">
                 <span>🍎 iPhone (Safari)</span>
@@ -155,6 +157,7 @@ const InstallAppBanner: React.FC = () => {
               </p>
             </div>
 
+            {/* Desktop / PC */}
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <div className="font-bold text-amber-400 flex items-center gap-1.5">
                 <span>💻 Laptop / PC (Chrome / Edge)</span>
@@ -224,7 +227,7 @@ export default function App() {
     }
   });
 
- const [settings, setSettings] = useState<ContractorSettings>(() => {
+  const [settings, setSettings] = useState<ContractorSettings>(() => {
     try {
       const saved = localStorage.getItem('tradecost_settings');
       if (saved) {
@@ -234,13 +237,11 @@ export default function App() {
         }
         return { ...INITIAL_SETTINGS, ...parsed, gcashNumber: parsed.gcashNumber || '0916 768 5173' };
       }
-      return { ...INITIAL_SETTINGS, gcashNumber: '0916 768 5173' };
+      return INITIAL_SETTINGS;
     } catch {
-      return { ...INITIAL_SETTINGS, gcashNumber: '0916 768 5173' };
+      return INITIAL_SETTINGS;
     }
   });
- 
- 
 
   // Navigation & Modals
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -297,6 +298,7 @@ export default function App() {
     clientNotes: string;
   }) => {
     if (activeJob) {
+      // Append to active job
       const updated: Job = {
         ...activeJob,
         scopeSummary: activeJob.scopeSummary ? `${activeJob.scopeSummary}\n${estimateData.scopeSummary}` : estimateData.scopeSummary,
@@ -307,6 +309,7 @@ export default function App() {
       };
       handleUpdateJob(updated);
     } else {
+      // Create new job from estimate
       const newJob: Job = {
         id: 'job-' + Date.now(),
         invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -339,6 +342,7 @@ export default function App() {
       };
       handleUpdateJob(updated);
     } else {
+      // Create quick job
       const newJob: Job = {
         id: 'job-' + Date.now(),
         invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -376,13 +380,14 @@ export default function App() {
     }));
   };
 
+  // Quick stats for top bar
   const totalLeakageRecovered = jobs.reduce((sum, j) => sum + (j.recoveredLeakageAmount || 0), 0);
   const totalVolume = jobs.reduce((sum, j) => sum + calculateJobFinancials(j).finalTotal, 0);
 
   return (
     <div className={`min-h-screen ${settings.sunlightMode ? 'bg-slate-900 text-white font-semibold' : 'bg-slate-950 text-slate-100'} transition-colors duration-200`}>
       
-      {/* PWA Install Banner (Always Visible) */}
+      {/* PWA Install Banner */}
       <InstallAppBanner />
 
       {/* Top Navbar */}
@@ -612,6 +617,7 @@ export default function App() {
             isOpen={isPaymentOpen}
             onClose={() => setIsPaymentOpen(false)}
             job={activeJob}
+            settings={settings}
             onPaymentSuccess={handlePaymentSuccess}
           />
 
@@ -675,6 +681,7 @@ export default function App() {
             </div>
 
             <div className="p-5 space-y-4">
+              {/* Domain Setup Quick Card */}
               <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
@@ -694,6 +701,7 @@ export default function App() {
                 </p>
               </div>
 
+              {/* Public URL Box */}
               <div>
                 <label className="text-[11px] text-slate-400 font-semibold block mb-1">
                   Live Public Web Link:
@@ -718,6 +726,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Marketing Steps */}
               <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80 space-y-2 text-xs">
                 <div className="font-bold text-amber-400 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />

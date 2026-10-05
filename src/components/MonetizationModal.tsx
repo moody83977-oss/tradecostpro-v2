@@ -11,7 +11,10 @@ import {
   X,
   Sliders,
   Award,
-  Layers
+  Layers,
+  Copy,
+  Coffee,
+  Heart
 } from 'lucide-react';
 import { ContractorSettings } from '../types';
 import { formatCurrency, playChime } from '../utils/calculations';
@@ -36,8 +39,38 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
   const [jobsPerMonth, setJobsPerMonth] = useState<number>(28);
   const [avgLeakagePerJob, setAvgLeakagePerJob] = useState<number>(38);
   const [hoursSavedPerJob, setHoursSavedPerJob] = useState<number>(0.5);
+  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'elite'>('pro');
+  const [gcashRef, setGcashRef] = useState<string>('');
+  const [copiedGcash, setCopiedGcash] = useState<boolean>(false);
+  const [tipSuccess, setTipSuccess] = useState<string | null>(null);
+
+  const creatorGcashNumber = '0916 768 5173';
+  const creatorAccountName = 'TradeCost Pro Platform Creator';
 
   if (!isOpen) return null;
+
+  const handleCopyCreatorGcash = () => {
+    navigator.clipboard.writeText(creatorGcashNumber.replace(/\s+/g, ''));
+    setCopiedGcash(true);
+    playChime('beep');
+    setTimeout(() => setCopiedGcash(false), 2000);
+  };
+
+  const handleVerifyGcashPayment = (tier: 'starter' | 'pro' | 'elite') => {
+    if (!gcashRef.trim()) {
+      alert('Pakilagay po ang GCash Reference Number mula sa resibo para ma-activate ang Pro!');
+      return;
+    }
+    onUpdateTier(tier);
+    playChime('success');
+    alert(`Salamat sa pagsuporta! Matagumpay na na-activate ang iyong ${tier.toUpperCase()} Plan gamit ang Reference #${gcashRef}!`);
+    setGcashRef('');
+  };
+
+  const handleSendTip = (amount: number) => {
+    playChime('beep');
+    setTipSuccess(`Salamat po sa ₱${amount} tip! I-send po ito sa GCash: ${creatorGcashNumber}`);
+  };
 
   // ROI Calculations
   const monthlyPartsRecovered = jobsPerMonth * avgLeakagePerJob;
@@ -99,55 +132,75 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
 
           {/* Subscription Tiers */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              1. Monthly Subscription Tiers ($19 - $49/mo per technician)
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <span>1. Monthly Plans & Pro Upgrades</span>
+              <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                Direct GCash Supported 🇵🇭
+              </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
                 {
                   id: 'starter',
                   name: 'Solo Tech',
-                  price: 19,
-                  desc: 'Independent handyman & detailer',
-                  features: ['Voice-to-Estimate (15/mo)', 'Tap-to-Pay QR', 'Standard Margin Presets', '1 Technician']
+                  pricePhp: 149,
+                  priceUsd: 19,
+                  desc: 'Handyman, aircon cleaning & detailers',
+                  features: ['Voice AI Estimator (15/mo)', 'Tap-to-Pay & GCash QR', 'Auto Markup Calculator', 'PDF Invoices']
                 },
                 {
                   id: 'pro',
                   name: 'Pro Contractor',
-                  price: 29,
+                  pricePhp: 299,
+                  priceUsd: 29,
                   popular: true,
                   desc: 'High-volume field service pro',
-                  features: ['Unlimited Voice AI Estimator', 'Real-time Supplier Scrape', 'Profit Leakage Detector', 'Stripe Connect Instant Payouts', 'Digital Signature Pad']
+                  features: ['Unlimited Voice AI Estimator', 'Material Cost Lookup', 'Customer Signature Pad', 'Official QR Ph Image Upload', 'Profit Leakage Detector']
                 },
                 {
                   id: 'elite',
-                  name: 'Elite Crew',
-                  price: 49,
-                  desc: 'Multi-van service businesses',
-                  features: ['Everything in Pro', 'Multi-tech Fleet Dispatch', 'Custom Supplier Catalog API', 'Priority 24/7 Phone Support', 'Dedicated Account Manager']
+                  name: 'Lifetime Pass',
+                  pricePhp: 499,
+                  priceUsd: 49,
+                  desc: 'One-time payment, lifetime access',
+                  features: ['Lifetime Access (No Monthly Fees)', 'All Current & Future Features', 'Custom Business Branding', 'Priority VIP Cloud Support', 'Unlimited Invoices']
                 }
               ].map((tier) => {
                 const isCurrent = settings.subscriptionTier === tier.id;
+                const isSelected = selectedPlan === tier.id;
                 return (
                   <div
                     key={tier.id}
-                    className={`relative p-4 rounded-xl border transition flex flex-col justify-between ${
-                      isCurrent
-                        ? 'bg-slate-900 border-amber-500/60 ring-2 ring-amber-500/30 shadow-lg'
+                    onClick={() => setSelectedPlan(tier.id as any)}
+                    className={`relative p-4 rounded-xl border transition flex flex-col justify-between cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-900 border-amber-500/80 ring-2 ring-amber-500/40 shadow-xl'
+                        : isCurrent
+                        ? 'bg-slate-900/90 border-blue-500/50'
                         : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
                     }`}
                   >
                     {tier.popular && (
-                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950">
+                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 shadow-md">
                         Most Popular
                       </span>
                     )}
                     <div>
-                      <div className="text-sm font-bold text-slate-100">{tier.name}</div>
+                      <div className="text-sm font-bold text-slate-100 flex items-center justify-between">
+                        <span>{tier.name}</span>
+                        {isCurrent && (
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
+                            Current
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">{tier.desc}</div>
-                      <div className="mt-3 flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-slate-100 font-mono">${tier.price}</span>
-                        <span className="text-xs text-slate-400">/mo</span>
+                      <div className="mt-3 flex items-baseline gap-1.5">
+                        <span className="text-2xl font-black text-amber-400 font-mono">₱{tier.pricePhp}</span>
+                        <span className="text-xs text-slate-400">
+                          {tier.id === 'elite' ? 'one-time' : '/buwan'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">(${tier.priceUsd})</span>
                       </div>
 
                       <div className="mt-3 space-y-1.5 border-t border-slate-800/80 pt-3">
@@ -162,22 +215,116 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPlan(tier.id as any);
                         onUpdateTier(tier.id as any);
                         playChime('success');
                       }}
                       className={`w-full mt-4 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 ${
                         isCurrent
-                          ? 'bg-amber-500 text-slate-950'
+                          ? 'bg-emerald-600 text-white'
+                          : isSelected
+                          ? 'bg-amber-500 text-slate-950 font-black'
                           : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                       }`}
                     >
-                      {isCurrent ? 'Current Active Plan' : 'Select Plan'}
+                      {isCurrent ? 'Active Plan' : `Piliin (₱${tier.pricePhp})`}
                     </button>
                   </div>
                 );
               })}
             </div>
+          </div>
+
+          {/* Direct GCash Payment Box to Platform Creator */}
+          <div className="bg-gradient-to-br from-blue-950/40 via-slate-950 to-slate-900 p-4 rounded-xl border border-blue-600/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-black flex items-center justify-center">G</span>
+                Bayaran Gamit ang GCash (Diretso sa Creator)
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                0% Transaction Fees
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              I-send ang bayad sa napiling plano (<strong className="text-amber-400 font-bold">{selectedPlan.toUpperCase()}</strong>) sa GCash number sa ibaba, at i-enter ang Reference Number para ma-unlock agad:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+              <div>
+                <span className="text-[10px] text-slate-400 block">GCash Account Name:</span>
+                <span className="font-bold text-slate-100 text-xs sm:text-sm">{creatorAccountName}</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 block">Creator GCash Mobile Number:</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="font-mono font-black text-blue-300 text-sm tracking-wider">
+                    {creatorGcashNumber}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyCreatorGcash}
+                    className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-semibold flex items-center gap-1 transition"
+                  >
+                    {copiedGcash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedGcash ? 'Kopyado!' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <input
+                type="text"
+                placeholder="I-type ang GCash Reference # (hal. 100982736412)"
+                value={gcashRef}
+                onChange={(e) => setGcashRef(e.target.value)}
+                className="w-full flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-amber-400"
+              />
+              <button
+                type="button"
+                onClick={() => handleVerifyGcashPayment(selectedPlan)}
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-lg shadow-emerald-950"
+              >
+                <Check className="w-4 h-4" />
+                <span>I-verify & I-unlock</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ☕ Buy the Creator a Coffee / Tip Box */}
+          <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-800/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                <Coffee className="w-4 h-4 text-amber-400" />
+                Suportahan ang Developer / Mag-Kape (GCash Tip)
+              </span>
+              <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/20" />
+            </div>
+            <p className="text-[11px] text-slate-300">
+              Nakatulong ba sa hanapbuhay mo ang libreng app na ito? Pwede kang mag-abot ng tip o pambili ng kape via GCash:
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {[20, 50, 100, 200].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => handleSendTip(amt)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-amber-950/60 border border-amber-700/50 text-amber-300 text-xs font-bold transition flex items-center gap-1"
+                >
+                  <span>☕ ₱{amt}</span>
+                </button>
+              ))}
+            </div>
+            {tipSuccess && (
+              <div className="text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 p-2 rounded-lg font-medium">
+                {tipSuccess}
+              </div>
+            )}
           </div>
 
           {/* Interactive ROI & Leakage Calculator */}
