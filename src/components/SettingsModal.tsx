@@ -15,7 +15,10 @@ import {
   Check,
   CreditCard,
   ExternalLink,
-  HelpCircle
+  HelpCircle,
+  Upload,
+  QrCode,
+  Trash2
 } from 'lucide-react';
 import { ContractorSettings, TradeType } from '../types';
 import { playChime } from '../utils/calculations';
@@ -35,6 +38,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<ContractorSettings>(settings);
   const [savedToast, setSavedToast] = useState(false);
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (PNG, JPG, or WEBP)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setFormData(prev => ({ ...prev, gcashQrCodeUrl: result }));
+        playChime('success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!isOpen) return null;
 
@@ -282,6 +305,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                   <span className="text-[9px] text-slate-400 mt-0.5 block">Shown on payment QR code</span>
                 </div>
+              </div>
+
+              {/* Official GCash QR Image Uploader */}
+              <div className="pt-2 border-t border-blue-900/40">
+                <label className="text-[11px] text-slate-300 font-medium block mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <QrCode className="w-3.5 h-3.5 text-blue-400" />
+                    Official GCash / QR Ph Image:
+                  </span>
+                  {formData.gcashQrCodeUrl && (
+                    <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-bold">
+                      <Check className="w-3 h-3" /> Image Loaded
+                    </span>
+                  )}
+                </label>
+
+                {formData.gcashQrCodeUrl ? (
+                  <div className="flex items-center gap-3 bg-slate-950 p-2.5 rounded-xl border border-blue-500/30">
+                    <img 
+                      src={formData.gcashQrCodeUrl} 
+                      alt="GCash QR Preview" 
+                      className="w-16 h-16 object-contain rounded-lg bg-white p-1 border border-slate-700 shrink-0" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-100 truncate">Your Official QR Ph Image</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Customers can scan this directly using GCash, Maya, or any bank app</p>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, gcashQrCodeUrl: undefined }))}
+                        className="mt-1.5 text-[10px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition"
+                      >
+                        <Trash2 className="w-3 h-3" /> Remove & use auto-generator
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-dashed border-blue-600/40 hover:border-blue-500 bg-blue-950/30 hover:bg-blue-950/50 cursor-pointer transition text-center group">
+                    <Upload className="w-4 h-4 text-blue-400 group-hover:scale-110 transition mb-1" />
+                    <span className="text-xs font-bold text-blue-200">
+                      Upload Official GCash QR Image
+                    </span>
+                    <span className="text-[10px] text-blue-400/80 mt-0.5">
+                      Screenshot from GCash app (QR ➜ Receive Money ➜ Save QR)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQrUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
               <div>
