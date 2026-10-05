@@ -224,14 +224,23 @@ export default function App() {
     }
   });
 
-  const [settings, setSettings] = useState<ContractorSettings>(() => {
+ const [settings, setSettings] = useState<ContractorSettings>(() => {
     try {
       const saved = localStorage.getItem('tradecost_settings');
-      return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.gcashNumber || parsed.gcashNumber.includes('888') || parsed.gcashNumber.trim() === '') {
+          parsed.gcashNumber = '0916 768 5173';
+        }
+        return { ...INITIAL_SETTINGS, ...parsed, gcashNumber: parsed.gcashNumber || '0916 768 5173' };
+      }
+      return { ...INITIAL_SETTINGS, gcashNumber: '0916 768 5173' };
     } catch {
-      return INITIAL_SETTINGS;
+      return { ...INITIAL_SETTINGS, gcashNumber: '0916 768 5173' };
     }
   });
+ 
+ 
 
   // Navigation & Modals
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
