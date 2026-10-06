@@ -33,6 +33,7 @@ interface JobListProps {
   onOpenMonetization: () => void;
   onQuickPayment: (job: Job) => void;
   usageStatus?: DailyUsageStatus;
+  onToggleDemoTier?: () => void;
 }
 
 export const JobList: React.FC<JobListProps> = ({
@@ -44,7 +45,8 @@ export const JobList: React.FC<JobListProps> = ({
   onOpenLookup,
   onOpenMonetization,
   onQuickPayment,
-  usageStatus
+  usageStatus,
+  onToggleDemoTier
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,6 +136,16 @@ export const JobList: React.FC<JobListProps> = ({
               <Plus className="w-4 h-4" />
               <span>New Ticket</span>
             </button>
+            {onToggleDemoTier && (
+              <button
+                type="button"
+                onClick={onToggleDemoTier}
+                className="w-full text-center text-[11px] text-amber-400 hover:text-amber-300 underline flex items-center justify-center sm:justify-end gap-1 font-semibold transition pt-1 cursor-pointer"
+                title="Tap to switch between Free (4/day limit) and Pro Unlimited for testing"
+              >
+                <span>{usageStatus?.isPro ? '🧪 Click here to test 4/4 Free Limit Mode' : '👑 Click here for Pro Unlimited'}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

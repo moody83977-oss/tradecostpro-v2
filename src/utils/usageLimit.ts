@@ -108,3 +108,13 @@ export const incrementDailyVoiceUsage = (): DailyUsageStatus => {
     };
   }
 };
+
+export const resetDailyVoiceUsage = (): void => {
+  if (typeof window !== 'undefined') {
+    const today = getTodayDateString();
+    try {
+      localStorage.setItem('tcp_daily_voice_usage', JSON.stringify({ date: today, count: 0 }));
+    } catch {}
+  }
+};
+

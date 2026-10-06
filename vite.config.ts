@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import { fileURLToPath } from 'url';
 import {defineConfig, Plugin} from 'vite';
 
 function pwaPlugin(): Plugin {
@@ -17,12 +17,47 @@ function pwaPlugin(): Plugin {
     orientation: "portrait",
     theme_color: "#0f172a",
     background_color: "#020617",
+    categories: ["business", "productivity", "utilities"],
     icons: [
       {
-        src: "/icon.svg",
-        sizes: "192x192 512x512",
-        type: "image/svg+xml",
-        purpose: "any maskable"
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable"
+      },
+      {
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable"
+      }
+    ],
+    screenshots: [
+      {
+        src: "/screenshot-mobile.png",
+        sizes: "720x1280",
+        type: "image/png",
+        form_factor: "narrow",
+        label: "TradeCost Pro Mobile Estimator"
+      },
+      {
+        src: "/screenshot-desktop.png",
+        sizes: "1280x720",
+        type: "image/png",
+        form_factor: "wide",
+        label: "TradeCost Pro Dashboard"
       }
     ]
   }, null, 2);
@@ -70,7 +105,7 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss(), pwaPlugin()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': fileURLToPath(new URL('.', import.meta.url)),
       },
     },
     server: {

@@ -1,5 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -13,8 +14,20 @@ const stripe = new Stripe(stripeSecretKey);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const isProd = process.env.NODE_ENV === 'production';
-const PORT = Number(process.env.PORT) || 3000;
+
+function resolvePort(): number {
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const val = Number(process.argv[portArgIdx + 1]);
+    if (!isNaN(val) && val > 0) return val;
+  }
+  if (process.env.npm_lifecycle_event === 'dev') {
+    return 3000;
+  }
+  return Number(process.env.PORT) || 3000;
+}
+
+const PORT = resolvePort();
 
 // Initialize Google Gen AI SDK
 const ai = new GoogleGenAI();
@@ -675,23 +688,37 @@ Return JSON only.`;
     }
   });
 
+  // Cloud Run & container health checks
+  app.get(['/health', '/_health', '/ping'], (req, res) => {
+    res.status(200).send('OK');
+  });
+
   // Serve downloadable project zip
   app.get(['/tradecostpro-update.zip', '/api/download-zip'], (req, res) => {
     const zipFile = path.resolve(__dirname, 'public', 'tradecostpro-update.zip');
-    res.download(zipFile, 'tradecostpro-latest.zip');
+    if (fs.existsSync(zipFile)) {
+      res.download(zipFile, 'tradecostpro-latest.zip');
+    } else {
+      res.status(404).send('ZIP file not found');
+    }
   });
 
+  const distDir = path.resolve(__dirname, 'dist');
+  const distIndex = path.resolve(distDir, 'index.html');
+  const hasDist = fs.existsSync(distIndex);
+  const isDev = process.env.npm_lifecycle_event === 'dev' || (!hasDist && process.env.NODE_ENV !== 'production');
+
   // Mount Vite middleware in development or serve static in production
-  if (!isProd) {
+  if (isDev) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.use(express.static(distDir));
     app.get('*', (req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(distIndex);
     });
   }
 

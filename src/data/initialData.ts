@@ -10,7 +10,7 @@ export const INITIAL_SETTINGS: ContractorSettings = {
   defaultMaterialMarkup: 40,
   taxRate: 12,
   dispatchFee: 500,
-  subscriptionTier: 'starter',
+  subscriptionTier: 'free',
   stripeConnectActive: true,
   stripePublishableKey: '',
   stripeAccountId: 'acct_1TradeCostProDemo',

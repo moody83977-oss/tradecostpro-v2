@@ -421,6 +421,23 @@ export default function App() {
   const totalLeakageRecovered = jobs.reduce((sum, j) => sum + (j.recoveredLeakageAmount || 0), 0);
   const totalVolume = jobs.reduce((sum, j) => sum + calculateJobFinancials(j).finalTotal, 0);
 
+  const handleToggleDemoTier = () => {
+    const isCurrentlyPro = settings.subscriptionTier === 'pro' || settings.subscriptionTier === 'elite';
+    const newTier = isCurrentlyPro ? 'free' : 'pro';
+    const updated: ContractorSettings = { ...settings, subscriptionTier: newTier as any };
+    setSettings(updated);
+    try {
+      localStorage.setItem('tradecost_settings', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+    if (newTier === 'free') {
+      localStorage.setItem('tcp_daily_voice_usage', JSON.stringify({ date: new Date().toISOString().slice(0, 10), count: 0 }));
+    }
+    setDailyUsage(getDailyVoiceUsageStatus(updated));
+    playChime('beep');
+  };
+
   return (
     <div className={`min-h-screen ${settings.sunlightMode ? 'bg-slate-900 text-white font-semibold' : 'bg-slate-950 text-slate-100'} transition-colors duration-200`}>
       
@@ -575,6 +592,7 @@ export default function App() {
               setIsPaymentOpen(true);
             }}
             usageStatus={dailyUsage}
+            onToggleDemoTier={handleToggleDemoTier}
           />
         )}
       </main>
@@ -712,8 +730,12 @@ export default function App() {
         }}
         settings={settings}
         onUpdateTier={(tier) => {
-          setSettings({ ...settings, subscriptionTier: tier });
-          setDailyUsage(getDailyVoiceUsageStatus({ ...settings, subscriptionTier: tier }));
+          const updated = { ...settings, subscriptionTier: tier };
+          setSettings(updated);
+          try {
+            localStorage.setItem('tradecost_settings', JSON.stringify(updated));
+          } catch {}
+          setDailyUsage(getDailyVoiceUsageStatus(updated));
         }}
         totalRecoveredLeakage={totalLeakageRecovered}
         monthlyVolumeProcessed={totalVolume}

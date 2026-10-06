@@ -510,6 +510,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
+          {/* Subscription Tier & Daily Limit Control */}
+          <div className="pt-2 border-t border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                Subscription Plan & Limit Control
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                formData.subscriptionTier === 'pro' || formData.subscriptionTier === 'elite'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+              }`}>
+                {formData.subscriptionTier === 'pro' || formData.subscriptionTier === 'elite' ? '👑 PRO UNLIMITED' : '⚡ FREE (4/DAY CAP)'}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, subscriptionTier: 'free' })}
+                  className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
+                    formData.subscriptionTier === 'free' || formData.subscriptionTier === 'starter'
+                      ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span>Free Tier</span>
+                  <span className="text-[10px] font-normal text-slate-400">4 Estimates / Araw</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, subscriptionTier: 'pro' })}
+                  className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
+                    formData.subscriptionTier === 'pro' || formData.subscriptionTier === 'elite'
+                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span>👑 Pro Unlimited</span>
+                  <span className="text-[10px] font-normal text-slate-400">Walang Limitasyon</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                <span className="text-[11px] text-slate-400">I-reset ang counter ngayong araw (para sa pag-test):</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('tcp_daily_voice_usage', JSON.stringify({ date: new Date().toISOString().slice(0, 10), count: 0 }));
+                    playChime('beep');
+                    alert('Na-reset na sa 0 ang iyong Daily Free Usage counter para sa araw na ito!');
+                  }}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition border border-slate-700"
+                >
+                  Reset Usage (0/4)
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Field Display Mode */}
           <div className="pt-2 border-t border-slate-800 space-y-2">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">

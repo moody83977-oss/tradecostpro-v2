@@ -170,6 +170,11 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
       return;
     }
 
+    // Immediately count this estimate against the daily free limit (4/day)!
+    if (!usageStatus.isPro) {
+      onRecordUsage();
+    }
+
     setIsLoading(true);
     setErrorMsg(null);
 
@@ -259,10 +264,6 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
 
   const handleConfirmAndApply = () => {
     if (!parseResult) return;
-
-    if (!usageStatus.isPro) {
-      onRecordUsage();
-    }
 
     onApplyEstimate({
       title: parseResult.jobSummary || 'Field Service Estimate',
@@ -503,25 +504,73 @@ export const VoiceEstimatorModal: React.FC<VoiceEstimatorModalProps> = ({
             </div>
           )}
 
-          {/* Action Trigger */}
-          <button
-            type="button"
-            onClick={handleParseEstimate}
-            disabled={isLoading || !transcript.trim()}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>AI Parsing Voice into Line Items & Detecting Leakage...</span>
-              </>
+          {/* Daily Usage Counter or Pro Badge */}
+          <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+            usageStatus.isPro 
+              ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+              : usageStatus.remainingToday === 0
+              ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+              : 'bg-slate-800/60 border-slate-700 text-slate-300'
+          }`}>
+            {usageStatus.isPro ? (
+              <div className="flex items-center gap-2 font-bold text-emerald-400">
+                <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>👑 TradeCost Pro Member: Unlimited Estimates & Leakage Checks Active</span>
+              </div>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
-                <span>Auto-Generate Line Items & Leakage Check</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-slate-200">
+                    ⚡ Free Plan: <strong className="text-amber-400 font-mono">{usageStatus.usedToday} / 4</strong> estimates ginamit ngayong araw
+                  </span>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                    usageStatus.remainingToday === 0
+                      ? 'bg-rose-500/30 text-rose-300 border border-rose-500/40'
+                      : 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                  }`}>
+                    {usageStatus.remainingToday} natitira
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenUpgrade}
+                  className="text-[11px] font-extrabold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 underline transition self-start sm:self-auto"
+                >
+                  <span>I-unlock ang Pro Unlimited (GCash) ➜</span>
+                </button>
               </>
             )}
-          </button>
+          </div>
+
+          {/* Action Trigger */}
+          {!usageStatus.canUse ? (
+            <button
+              type="button"
+              onClick={onOpenUpgrade}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 via-amber-600 to-emerald-600 hover:brightness-110 text-white font-extrabold text-sm shadow-xl flex items-center justify-center gap-2 transition animate-pulse"
+            >
+              <span>🔒 Naabot na ang 4/4 Daily Limit — I-unlock ang Pro Unlimited via GCash</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleParseEstimate}
+              disabled={isLoading || !transcript.trim()}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>AI Parsing Voice into Line Items & Detecting Leakage...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Auto-Generate Line Items & Leakage Check</span>
+                </>
+              )}
+            </button>
+          )}
 
           {/* AI Parsing Output */}
           {parseResult && (

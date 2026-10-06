@@ -47,8 +47,8 @@ export const MonetizationModal: React.FC<MonetizationModalProps> = ({
   const [tipSuccess, setTipSuccess] = useState<string | null>(null);
   const [qrImgFailed, setQrImgFailed] = useState<boolean>(false);
 
-  const creatorGcashNumber = '0916 768 5173';
-  const creatorAccountName = 'TradeCost Pro';
+  const creatorGcashNumber = settings.gcashNumber || '0916 768 5173';
+  const creatorAccountName = settings.gcashAccountName || 'TradeCost Pro';
 
   if (!isOpen) return null;
 
